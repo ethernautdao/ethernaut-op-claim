@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
-import "./IERC20.sol";
+import "openzeppelin-contracts/token/ERC20/IERC20.sol";
+import "openzeppelin-contracts/access/Ownable.sol";
 
-contract ClaimOP {
+contract OPTokenClaim is Ownable {
     // EXP and OP token
     IERC20 public immutable EXP;
     IERC20 public immutable OP;
@@ -18,6 +19,7 @@ contract ClaimOP {
     // epoch -> address -> claimed
     mapping(uint256 => mapping(address => bool)) public epochToAddressClaimed;
 
+    event ClaimedOP(address indexed to, uint256 indexed amount);
 
     constructor(address _EXP, address _OP, address _treasury) {
         EXP = IERC20(_EXP);
@@ -25,11 +27,15 @@ contract ClaimOP {
 
         treasury = _treasury;
 
-        // Tuesday 00:00:00 GMT+0000
+        // sets epoch start to Tuesday 00:00:00 GMT+0000
         currentEpoch = (block.timestamp / DURATION) * DURATION;
     }
 
-    // claim for passed months ...
+    // set new treasury in case multisig address changes
+    function setTreasury(address newTreasury) external onlyOwner {
+        treasury = newTreasury;
+    }
+
     function claimOP(address account) external {
         _checkEpoch();
         require(!epochToAddressClaimed[currentEpoch][account], "already claimed for this epoch");
@@ -42,16 +48,21 @@ contract ClaimOP {
 
         // transfer OP to account
         OP.transferFrom(treasury, account, claimableOP);
+
+        emit ClaimedOP(account, claimableOP);
     }
 
     function _checkEpoch() internal {
-        if (block.timestamp > currentEpoch + DURATION) currentEpoch = currentEpoch + DURATION;
+        // if 1 month passed start new epoch
+        if (block.timestamp > currentEpoch + DURATION) {
+            currentEpoch = currentEpoch + DURATION;
+        }
     }
 
-    function _calcReward(address account) internal view returns(uint256) {
+    function _calcReward(address account) internal view returns (uint256) {
         uint256 expBalance = EXP.balanceOf(account);
         require(expBalance > 0, "address has no exp");
 
-        return (expBalance * 5 - 4);
+        return (expBalance * 5 - 4 ether);
     }
 }
