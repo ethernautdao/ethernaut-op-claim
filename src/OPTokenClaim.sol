@@ -27,7 +27,6 @@ contract OPTokenClaim is Ownable {
 
         treasury = _treasury;
 
-        // sets epoch start to Tuesday 00:00:00 GMT+0000
         currentEpoch = (block.timestamp / DURATION) * DURATION;
     }
 
