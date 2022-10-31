@@ -4,6 +4,7 @@ pragma solidity 0.8.15;
 import "openzeppelin-contracts/token/ERC20/IERC20.sol";
 import "openzeppelin-contracts/access/Ownable.sol";
 
+
 contract OPTokenClaim is Ownable {
     // EXP and OP token
     IERC20 public immutable EXP;
@@ -13,10 +14,18 @@ contract OPTokenClaim is Ownable {
     address public treasury;
 
     // we assume 1 month is always 30 days
-    uint256 public constant DURATION = 86400 * 30;
-    uint256 public currentEpoch;
+    uint128 public constant EPOCH_DURATION = 86400 * 30;
+    // first claim period runs for 6 months, can be extended by owner
+    uint256 public claimDuration = 6;
 
-    // epoch -> address -> claimed
+    struct Epoch {
+        uint128 start; // start date of first epoch
+        uint128 date; // start date of current epoch
+    }
+
+    Epoch public epoch;
+
+    // date -> address -> claimed
     mapping(uint256 => mapping(address => bool)) public epochToAddressClaimed;
 
     event ClaimedOP(address indexed to, uint256 indexed amount);
@@ -27,23 +36,32 @@ contract OPTokenClaim is Ownable {
 
         treasury = _treasury;
 
-        currentEpoch = (block.timestamp / DURATION) * DURATION;
+        epoch = Epoch({
+            start: (uint128(block.timestamp) / EPOCH_DURATION) * EPOCH_DURATION,
+            date: (uint128(block.timestamp) / EPOCH_DURATION) * EPOCH_DURATION
+        });
     }
 
-    // set new treasury in case multisig address changes
+    // set new treasury in case address changes
     function setTreasury(address newTreasury) external onlyOwner {
         treasury = newTreasury;
     }
 
+    // set duration of claim period (in months)
+    function setClaimDuration(uint128 duration) external onlyOwner {
+        claimDuration = duration;
+    }
+
     function claimOP(address account) external {
         _checkEpoch();
-        require(!epochToAddressClaimed[currentEpoch][account], "already claimed for this epoch");
+        require((epoch.date - epoch.start) / EPOCH_DURATION < claimDuration, "claim period over");
+        require(!epochToAddressClaimed[epoch.date][account], "already claimed for this epoch");
 
         uint256 claimableOP = _calcReward(account);
         require(OP.allowance(treasury, address(this)) >= claimableOP, "reward exceeds allowance");
 
         // set claimed to true
-        epochToAddressClaimed[currentEpoch][account] = true;
+        epochToAddressClaimed[epoch.date][account] = true;
 
         // transfer OP to account
         OP.transferFrom(treasury, account, claimableOP);
@@ -52,9 +70,9 @@ contract OPTokenClaim is Ownable {
     }
 
     function _checkEpoch() internal {
-        // if 1 month passed start new epoch
-        if (block.timestamp > currentEpoch + DURATION) {
-            currentEpoch = currentEpoch + DURATION;
+        // if more than 1 month passed, begin new epoch
+        if (block.timestamp > epoch.date + EPOCH_DURATION) {
+            epoch.date = (uint128(block.timestamp) / EPOCH_DURATION) * EPOCH_DURATION;
         }
     }
 

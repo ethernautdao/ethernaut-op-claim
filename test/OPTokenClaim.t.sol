@@ -19,7 +19,13 @@ contract ClaimOPTest is Test {
     // duration of an epoch
     uint256 public constant DURATION = 86400 * 30;
 
+    // current unix timestamp
+    uint256 currentTime = 1667243025;
+
     function setUp() public {
+        // set time to current unix timestamp
+        vm.warp(currentTime);
+
         // deploy erc20 tokens
         OP = new Optimism();
         EXP = new EthernautExperience();
@@ -43,7 +49,7 @@ contract ClaimOPTest is Test {
         assertEq(OP.balanceOf(alice), 46 ether);
 
         // fast forward one month
-        vm.warp(DURATION + 1);
+        vm.warp(DURATION + 1 + currentTime);
         claimContract.claimOP(alice);
         assertEq(OP.balanceOf(alice), 46 ether * 2);
     }
@@ -59,7 +65,7 @@ contract ClaimOPTest is Test {
         claimContract.claimOP(alice);
 
         // fast forward 1 week (1 epoch = 1 month)
-        vm.warp(86400 * 7);
+        vm.warp(86400 * 7 + currentTime);
 
         // claim again
         vm.expectRevert(bytes("already claimed for this epoch"));
@@ -84,5 +90,19 @@ contract ClaimOPTest is Test {
 
         // should always mint the correct amount
         assertEq(OP.balanceOf(bob), balance * 1 ether * 5 - 4 ether);
+    }
+
+    function testClaimPeriod() public {
+        // fast forward 6 months, call claim function once a month to update index
+        for (uint256 i = 0; i < 6; i++) {
+            vm.warp(DURATION * i + 1 + currentTime);
+            claimContract.claimOP(alice);
+        }
+
+        vm.warp(DURATION * 6 + 1 + currentTime);
+
+        // 6 months passed, claim should be deactivated
+        vm.expectRevert(bytes("claim period over"));
+        claimContract.claimOP(alice);
     }
 }
