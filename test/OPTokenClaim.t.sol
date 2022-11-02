@@ -93,7 +93,7 @@ contract ClaimOPTest is Test {
     }
 
     function testClaimPeriod() public {
-        // fast forward 6 months, call claim function once a month to update index
+        // fast forward 6 months, call claim function once a month
         for (uint256 i = 0; i < 6; i++) {
             vm.warp(DURATION * i + 1 + currentTime);
             claimContract.claimOP(alice);
