@@ -99,10 +99,21 @@ contract ClaimOPTest is Test {
             claimContract.claimOP(alice);
         }
 
+        // fast forward 6 months and 1 second -> claim should be deactivated
         vm.warp(DURATION * 6 + 1 + currentTime);
-
-        // 6 months passed, claim should be deactivated
         vm.expectRevert(bytes("claim period over"));
         claimContract.claimOP(alice);
+
+        // extend claim for another month -> claiming possible again
+        claimContract.extendClaim(1);
+        claimContract.claimOP(alice);
+
+        // fast forward another month -> should revert again
+        vm.warp(DURATION * 7 + 1 + currentTime);
+        vm.expectRevert(bytes("claim period over"));
+        claimContract.claimOP(alice);
+
+        // 7 months passed, so alice should have been able to claim 46 OP 7 times
+        assertEq(OP.balanceOf(alice), 46 ether * 7);
     }
 }

@@ -4,7 +4,6 @@ pragma solidity 0.8.15;
 import "openzeppelin-contracts/token/ERC20/IERC20.sol";
 import "openzeppelin-contracts/access/Ownable.sol";
 
-
 contract OPTokenClaim is Ownable {
     // EXP and OP token
     IERC20 public immutable EXP;
@@ -47,9 +46,9 @@ contract OPTokenClaim is Ownable {
         treasury = newTreasury;
     }
 
-    // set duration of claim period (in months)
-    function setClaimDuration(uint128 duration) external onlyOwner {
-        claimDuration = duration;
+    // extend duration of claim period (in months)
+    function extendClaim(uint256 months) external onlyOwner {
+        claimDuration += months;
     }
 
     function claimOP(address account) external {
