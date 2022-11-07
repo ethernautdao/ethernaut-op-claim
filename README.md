@@ -8,6 +8,8 @@ From https://gov.optimism.io/t/review-gf-phase-1-proposal-cycle-7-ethernautdao/3
 
 A Cap at 99 EXP is considered for now.
 
+### Claimable amount
+
 Claimable OP will follow this function:
 `Claimable OP = 5 * (EXP balance) - 4`
 
@@ -17,6 +19,8 @@ This will result in
 1EXP = 1 claimable OP
 99 EXP (max lvl) = 491 claimable OP
 ```
+
+### Duration
 
 From https://gov.optimism.io/t/review-gf-phase-1-proposal-cycle-8-ethernautdao/3800
 
@@ -28,7 +32,8 @@ The owner can extend the claim period with function `extendClaim(uint256 months)
 
 The next 6 Epoch start dates are:
 
-- 1672444800 // Thu Dec 01 2022 00:00:00 UTC
+- 1669852800 // Thu Dec 01 2022 00:00:00 UTC
+- 1672444800 // Sat Dec 31 2022 00:00:00 UTC
 - 1675036800 // Mon Jan 30 2023 00:00:00 UTC
 - 1677628800 // Wed Mar 01 2023 00:00:00 UTC
 - 1680220800 // Fri Mar 31 2023 00:00:00 UTC
