@@ -17,3 +17,9 @@ This will result in
 1EXP = 1 claimable OP
 99 EXP (max lvl) = 491 claimable OP
 ```
+
+From https://gov.optimism.io/t/review-gf-phase-1-proposal-cycle-8-ethernautdao/3800
+
+> The monthly claim of OP tokens will start on December 1st and run for 6 months. Once this period is done all remaining OP tokens requested for mentors and monthly distribution, left in EthernautDAO treasury will go back to the Optimism Foundation.
+
+The owner can extend the claim period with function `extendClaim(uint256 months)`.
