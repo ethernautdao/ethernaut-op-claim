@@ -23,3 +23,14 @@ From https://gov.optimism.io/t/review-gf-phase-1-proposal-cycle-8-ethernautdao/3
 > The monthly claim of OP tokens will start on December 1st and run for 6 months. Once this period is done all remaining OP tokens requested for mentors and monthly distribution, left in EthernautDAO treasury will go back to the Optimism Foundation.
 
 The owner can extend the claim period with function `extendClaim(uint256 months)`.
+
+### Epoch dates
+
+The next 6 Epoch start dates are:
+
+- 1672444800 // Thu Dec 01 2022 00:00:00 GMT+0000
+- 1675036800 // Mon Jan 30 2023 00:00:00 GMT+0000
+- 1677628800 // Wed Mar 01 2023 00:00:00 GMT+0000
+- 1680220800 // Fri Mar 31 2023 00:00:00 GMT+0000
+- 1682812800 // Sun Apr 30 2023 00:00:00 GMT+0000
+- 1685404800 // Tue May 30 2023 00:00:00 GMT+0000
