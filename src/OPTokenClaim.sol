@@ -8,12 +8,9 @@ contract OPTokenClaim is Ownable {
     // EXP and OP token
     IERC20 public immutable EXP;
     IERC20 public immutable OP;
-
     // EthernautDAO Treasury
-    address public treasury;
+    address public immutable treasury;
 
-    // we assume 1 month is always 30 days
-    uint128 public constant EPOCH_DURATION = 86400 * 30;
     // first claim period runs for 6 months, can be extended by owner
     uint256 public claimDuration = 6;
 
@@ -36,14 +33,9 @@ contract OPTokenClaim is Ownable {
         treasury = _treasury;
 
         epoch = Epoch({
-            start: (uint128(block.timestamp) / EPOCH_DURATION) * EPOCH_DURATION,
-            date: (uint128(block.timestamp) / EPOCH_DURATION) * EPOCH_DURATION
+            start: 1669852800, // Thu Dec 01 2022 00:00:00 UTC
+            date: 1669852800
         });
-    }
-
-    // set new treasury in case address changes
-    function setTreasury(address newTreasury) external onlyOwner {
-        treasury = newTreasury;
     }
 
     // extend duration of claim period (in months)
@@ -53,15 +45,12 @@ contract OPTokenClaim is Ownable {
 
     function claimOP(address account) external {
         _checkEpoch();
-        require((epoch.date - epoch.start) / EPOCH_DURATION < claimDuration, "claim period over");
+        require((epoch.date - epoch.start) / 30 days < claimDuration, "claim period over");
         require(!epochToAddressClaimed[epoch.date][account], "already claimed for this epoch");
 
         uint256 claimableOP = _calcReward(account);
-        require(OP.allowance(treasury, address(this)) >= claimableOP, "reward exceeds allowance");
-
         // set claimed to true
         epochToAddressClaimed[epoch.date][account] = true;
-
         // transfer OP to account
         OP.transferFrom(treasury, account, claimableOP);
 
@@ -70,8 +59,8 @@ contract OPTokenClaim is Ownable {
 
     function _checkEpoch() internal {
         // if more than 1 month passed, begin new epoch
-        if (block.timestamp > epoch.date + EPOCH_DURATION) {
-            epoch.date = (uint128(block.timestamp) / EPOCH_DURATION) * EPOCH_DURATION;
+        if (block.timestamp > epoch.date + 30 days) {
+            epoch.date = epoch.date + 30 days;
         }
     }
 

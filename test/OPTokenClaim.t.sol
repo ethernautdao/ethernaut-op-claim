@@ -16,15 +16,15 @@ contract ClaimOPTest is Test {
     address public alice = address(100);
     address public bob = address(101);
 
-    // duration of an epoch
-    uint256 public constant DURATION = 86400 * 30;
+    // duration of an epoch: 30 days = 86400*30 = 2592000
+    uint256 public constant DURATION = 30 days;
 
-    // current unix timestamp
-    uint256 currentTime = 1667243025;
+    // start unix timestamp: Thu Dec 01 2022 00:00:00 UTC
+    uint256 start = 1669852800;
 
     function setUp() public {
         // set time to current unix timestamp
-        vm.warp(currentTime);
+        vm.warp(start);
 
         // deploy erc20 tokens
         OP = new Optimism();
@@ -49,7 +49,7 @@ contract ClaimOPTest is Test {
         assertEq(OP.balanceOf(alice), 46 ether);
 
         // fast forward one month
-        vm.warp(DURATION + 1 + currentTime);
+        vm.warp(DURATION + 1 + start);
         claimContract.claimOP(alice);
         assertEq(OP.balanceOf(alice), 46 ether * 2);
     }
@@ -65,7 +65,7 @@ contract ClaimOPTest is Test {
         claimContract.claimOP(alice);
 
         // fast forward 1 week (1 epoch = 1 month)
-        vm.warp(86400 * 7 + currentTime);
+        vm.warp(86400 * 7 + start);
 
         // claim again
         vm.expectRevert(bytes("already claimed for this epoch"));
@@ -76,7 +76,7 @@ contract ClaimOPTest is Test {
         // mint 5000 EXP to Bob, resulting in >5k OP reward
         EXP.mint(bob, 5000 * 1 ether);
 
-        vm.expectRevert(bytes("reward exceeds allowance"));
+        vm.expectRevert(bytes("ERC20: insufficient allowance"));
         claimContract.claimOP(bob);
     }
 
@@ -95,12 +95,12 @@ contract ClaimOPTest is Test {
     function testClaimPeriod() public {
         // fast forward 6 months, call claim function once a month
         for (uint256 i = 0; i < 6; i++) {
-            vm.warp(DURATION * i + 1 + currentTime);
+            vm.warp(DURATION * i + 1 + start);
             claimContract.claimOP(alice);
         }
 
         // fast forward 6 months and 1 second -> claim should be deactivated
-        vm.warp(DURATION * 6 + 1 + currentTime);
+        vm.warp(DURATION * 6 + 1 + start);
         vm.expectRevert(bytes("claim period over"));
         claimContract.claimOP(alice);
 
@@ -109,7 +109,7 @@ contract ClaimOPTest is Test {
         claimContract.claimOP(alice);
 
         // fast forward another month -> should revert again
-        vm.warp(DURATION * 7 + 1 + currentTime);
+        vm.warp(DURATION * 7 + 1 + start);
         vm.expectRevert(bytes("claim period over"));
         claimContract.claimOP(alice);
 
