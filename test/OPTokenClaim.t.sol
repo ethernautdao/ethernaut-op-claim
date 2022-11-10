@@ -8,16 +8,16 @@ import "./tokens/EXP.sol";
 import "./tokens/OP.sol";
 
 contract ClaimOPTest is Test {
+    // claim contract
     OPTokenClaim public claimContract;
 
+    // OP and EXP token
     Optimism public OP;
     EthernautExperience public EXP;
 
+    // test accounts
     address public alice = address(100);
     address public bob = address(101);
-
-    // duration of an epoch: 30 days = 86400*30 = 2592000
-    uint256 public constant DURATION = 30 days;
 
     // start unix timestamp: Thu Dec 01 2022 00:00:00 UTC
     uint256 start = 1669852800;
@@ -42,15 +42,17 @@ contract ClaimOPTest is Test {
     }
 
     function testAliceClaim() public {
-        // claim EXP token for alice
+        // claim OP token for alice
         claimContract.claimOP(alice);
 
         // 10 EXP results in 46 OP per month (10 * 5 - 4)
         assertEq(OP.balanceOf(alice), 46 ether);
 
-        // fast forward one month
-        vm.warp(DURATION + 1 + start);
+        // fast forward one month and one second and claim again
+        vm.warp(30 days + start + 1);
         claimContract.claimOP(alice);
+
+        // alice should own 92 OP now
         assertEq(OP.balanceOf(alice), 46 ether * 2);
     }
 
@@ -61,46 +63,55 @@ contract ClaimOPTest is Test {
     }
 
     function testDoubleClaim() public {
-        // claiming several times in a single epoch shouldnt be possible
+        // claim first time
         claimContract.claimOP(alice);
 
-        // fast forward 1 week (1 epoch = 1 month)
-        vm.warp(86400 * 7 + start);
+        // fast forward 1 week
+        vm.warp(start + 7 days);
 
-        // claim again
+        // claim again, same epoch
         vm.expectRevert(bytes("already claimed for this epoch"));
         claimContract.claimOP(alice);
     }
 
-    function testSpendLimit() public {
-        // mint 5000 EXP to Bob, resulting in >5k OP reward
-        EXP.mint(bob, 5000 * 1 ether);
+    function testEXPLimit() public {
+        // mint 200 EXP to Bob
+        EXP.mint(bob, 200 ether);
 
-        vm.expectRevert(bytes("ERC20: insufficient allowance"));
+        // claim OP token for bob
         claimContract.claimOP(bob);
+
+        // Bob should have 491 OP (max claim amount per month)
+        assertEq(OP.balanceOf(bob), 491 ether);
     }
 
     function testFuzzClaiming(uint256 balance) public {
-        // cap is currently at 99 EXP per address
-        balance = bound(balance, 1, 99);
+        // test balances between 1 and 1000 EXP
+        balance = bound(balance, 1 ether, 1000 ether);
 
-        EXP.mint(bob, balance * 1 ether);
-
+        // mint EXP and claim OP
+        EXP.mint(bob, balance);
         claimContract.claimOP(bob);
 
-        // should always mint the correct amount
-        assertEq(OP.balanceOf(bob), balance * 1 ether * 5 - 4 ether);
+        // should always mint the correct amount:
+        // 491 OP for EXP > 99
+        // EXP * 5 - 4 for EXP < 99
+        if (balance > 99 ether) {
+            assertEq(OP.balanceOf(bob), 491 ether);
+        } else {
+            assertEq(OP.balanceOf(bob), balance * 5 - 4 ether);
+        }
     }
 
     function testClaimPeriod() public {
         // fast forward 6 months, call claim function once a month
         for (uint256 i = 0; i < 6; i++) {
-            vm.warp(DURATION * i + 1 + start);
+            vm.warp(30 days * i + start + 1);
             claimContract.claimOP(alice);
         }
 
         // fast forward 6 months and 1 second -> claim should be deactivated
-        vm.warp(DURATION * 6 + 1 + start);
+        vm.warp(30 days * 6 + start + 1);
         vm.expectRevert(bytes("claim period over"));
         claimContract.claimOP(alice);
 
@@ -109,7 +120,7 @@ contract ClaimOPTest is Test {
         claimContract.claimOP(alice);
 
         // fast forward another month -> should revert again
-        vm.warp(DURATION * 7 + 1 + start);
+        vm.warp(30 days * 7 + start + 1);
         vm.expectRevert(bytes("claim period over"));
         claimContract.claimOP(alice);
 
