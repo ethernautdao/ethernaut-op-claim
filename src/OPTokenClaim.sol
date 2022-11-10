@@ -8,7 +8,7 @@ contract OPTokenClaim is Ownable {
     // EXP and OP token
     IERC20 public immutable EXP;
     IERC20 public immutable OP;
-    // EthernautDAO Treasury
+    // treasury EthernautDAO multisg
     address public immutable treasury;
 
     // first claim period runs for 6 months, can be extended by owner
@@ -25,6 +25,7 @@ contract OPTokenClaim is Ownable {
     mapping(uint256 => mapping(address => bool)) public epochToAddressClaimed;
 
     event ClaimExtended(uint256 indexed months);
+    event NewEpoch(uint128 indexed date);
     event OPClaimed(address indexed to, uint256 indexed amount);
 
     constructor(address _EXP, address _OP, address _treasury) {
@@ -63,12 +64,17 @@ contract OPTokenClaim is Ownable {
         // if more than 1 month passed, begin new epoch
         if (block.timestamp > epoch.date + 30 days) {
             epoch.date = epoch.date + 30 days;
+            emit NewEpoch(epoch.date);
         }
     }
 
     function _calcReward(address account) internal view returns (uint256) {
         uint256 expBalance = EXP.balanceOf(account);
         require(expBalance > 0, "address has no exp");
+        // limit is 99 EXP -> 491 OP per month
+        if (expBalance > 99 ether) {
+            expBalance = 99 ether;
+        }
 
         return (expBalance * 5 - 4 ether);
     }
