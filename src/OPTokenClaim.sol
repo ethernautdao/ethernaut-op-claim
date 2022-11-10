@@ -24,7 +24,8 @@ contract OPTokenClaim is Ownable {
     // date -> address -> claimed
     mapping(uint256 => mapping(address => bool)) public epochToAddressClaimed;
 
-    event ClaimedOP(address indexed to, uint256 indexed amount);
+    event ClaimExtended(uint256 indexed months);
+    event OPClaimed(address indexed to, uint256 indexed amount);
 
     constructor(address _EXP, address _OP, address _treasury) {
         EXP = IERC20(_EXP);
@@ -41,6 +42,7 @@ contract OPTokenClaim is Ownable {
     // extend duration of claim period (in months)
     function extendClaim(uint256 months) external onlyOwner {
         claimDuration += months;
+        emit ClaimExtended(months);
     }
 
     function claimOP(address account) external {
@@ -52,9 +54,9 @@ contract OPTokenClaim is Ownable {
         // set claimed to true
         epochToAddressClaimed[epoch.date][account] = true;
         // transfer OP to account
-        OP.transferFrom(treasury, account, claimableOP);
+        require(OP.transferFrom(treasury, account, claimableOP), "Transfer failed");
 
-        emit ClaimedOP(account, claimableOP);
+        emit OPClaimed(account, claimableOP);
     }
 
     function _checkEpoch() internal {
