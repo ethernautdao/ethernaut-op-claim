@@ -8,6 +8,8 @@ import "./tokens/EXP.sol";
 import "./tokens/OP.sol";
 
 contract ClaimOPTest is Test {
+    event OPClaimed(address indexed to, uint256 epoch, uint256 amount);
+
     // claim contract
     OPTokenClaim public claimContract;
 
@@ -31,7 +33,11 @@ contract ClaimOPTest is Test {
         EXP = new EthernautExperience();
 
         // we assume this address is the OP token treasury
-        claimContract = new OPTokenClaim(address(EXP), address(OP), address(this));
+        claimContract = new OPTokenClaim(
+            address(EXP),
+            address(OP),
+            address(this)
+        );
         OP.mint(address(this), 300_000 ether);
 
         // allow OPTokenClaim to spend 5000 OP
@@ -43,6 +49,8 @@ contract ClaimOPTest is Test {
 
     function testAliceClaim() public {
         // claim OP token for alice
+        vm.expectEmit(true, true, true, true);
+        emit OPClaimed(alice, 0, 46 ether);
         claimContract.claimOP(alice);
 
         // 10 EXP results in 46 OP per month (10 * 5 - 4)
