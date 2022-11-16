@@ -81,11 +81,13 @@ contract OPTokenClaim is Ownable {
         emit OPClaimed(account, epoch, claimableOP);
     }
 
+    /// @dev reverts if claims have not started yet
     function currentEpoch(Config memory _config)
         internal
         view
         returns (uint256 epochNumber)
     {
+        require(block.timestamp >= _config.start, "claim period not started");
         unchecked {
             epochNumber = (block.timestamp - _config.start) / 30 days;
         }

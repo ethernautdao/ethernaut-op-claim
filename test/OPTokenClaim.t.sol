@@ -38,6 +38,7 @@ contract ClaimOPTest is Test {
             address(OP),
             address(this)
         );
+
         OP.mint(address(this), 300_000 ether);
 
         // allow OPTokenClaim to spend 5000 OP
@@ -45,6 +46,13 @@ contract ClaimOPTest is Test {
 
         // mint 10 EXP to Alice
         EXP.mint(alice, 10 ether);
+    }
+
+    function testClaimBeforeStart() public {
+        vm.warp(start - 1);
+
+        vm.expectRevert("claim period not started");
+        claimContract.claimOP(alice);
     }
 
     function testExpOwnerCanClaim() public {
