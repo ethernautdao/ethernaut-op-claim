@@ -1,0 +1,6 @@
+ClaimOPTest:testClaimPeriod() (gas: 303033)
+ClaimOPTest:testDoubleClaim() (gas: 87501)
+ClaimOPTest:testEXPLimit() (gas: 115708)
+ClaimOPTest:testExpOwnerCanClaim() (gas: 124902)
+ClaimOPTest:testFuzzClaiming(uint256) (runs: 256, μ: 118162, ~: 118219)
+ClaimOPTest:testNonExpOwnerCanNotClaim() (gas: 20995)
