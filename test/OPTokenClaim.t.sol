@@ -117,6 +117,15 @@ contract ClaimOPTest is Test {
         claimContract.extendClaim(1);
     }
 
+    function testExtendClaim() public {
+        assertEq(claimContract.maxEpoch(), 6);
+
+        // extend claim period by 1 month
+        claimContract.extendClaim(1);
+
+        assertEq(claimContract.maxEpoch(), 7);
+    }
+
     function testClaimPeriod() public {
         // fast forward 6 months, call claim function once a month
         for (uint256 i = 0; i < 6; i++) {

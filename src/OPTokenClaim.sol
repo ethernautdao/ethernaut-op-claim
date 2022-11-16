@@ -45,7 +45,8 @@ contract OPTokenClaim is Ownable {
         // TODO: transferOwnership to EthernautDAO multisig?
     }
 
-    // extend duration of claim period (in months)
+    /// extend duration of claim period
+    /// @param months number of months to extend claim period
     function extendClaim(uint256 months) external onlyOwner {
         unchecked {
             config.maxEpoch += uint128(months);
@@ -100,5 +101,13 @@ contract OPTokenClaim is Ownable {
         }
 
         return (expBalance * 5 - 4 ether);
+    }
+
+    function currentEpoch() external view returns (uint256 epochNumber) {
+        epochNumber = currentEpoch(config);
+    }
+
+    function maxEpoch() external view returns (uint256) {
+        return config.maxEpoch;
     }
 }
