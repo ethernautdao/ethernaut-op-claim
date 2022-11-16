@@ -47,7 +47,7 @@ contract ClaimOPTest is Test {
         EXP.mint(alice, 10 ether);
     }
 
-    function testAliceClaim() public {
+    function testExpOwnerCanClaim() public {
         // claim OP token for alice
         vm.expectEmit(true, true, true, true);
         emit OPClaimed(alice, 0, 46 ether);
@@ -64,7 +64,7 @@ contract ClaimOPTest is Test {
         assertEq(OP.balanceOf(alice), 46 ether * 2);
     }
 
-    function testBobClaim() public {
+    function testNonExpOwnerCanNotClaim() public {
         // bob has no EXP, so shouldnt be able to claim
         vm.expectRevert(bytes("address has no exp"));
         claimContract.claimOP(bob);
