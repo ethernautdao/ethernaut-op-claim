@@ -18,8 +18,8 @@ contract ClaimOPTest is Test {
     EthernautExperience public EXP;
 
     // test accounts
-    address public alice = address(100);
-    address public bob = address(101);
+    address public alice = makeAddr("alice");
+    address public bob = makeAddr("bob");
 
     // start unix timestamp: Thu Dec 01 2022 00:00:00 UTC
     uint256 start = 1669852800;
@@ -109,6 +109,12 @@ contract ClaimOPTest is Test {
         } else {
             assertEq(OP.balanceOf(bob), balance * 5 - 4 ether);
         }
+    }
+
+    function testExtendClaimAuth() public {
+        vm.expectRevert("Ownable: caller is not the owner");
+        vm.prank(bob);
+        claimContract.extendClaim(1);
     }
 
     function testClaimPeriod() public {
