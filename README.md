@@ -32,12 +32,22 @@ The owner can extend the claim period with function `extendClaim(uint256 months)
 
 ### Epoch dates
 
-The next 6 Epoch start dates are:
+The first 6 Epoch start dates are:
 
-- 1669852800 // Thu Dec 01 2022 00:00:00 UTC
-- 1672444800 // Sat Dec 31 2022 00:00:00 UTC
-- 1675036800 // Mon Jan 30 2023 00:00:00 UTC
-- 1677628800 // Wed Mar 01 2023 00:00:00 UTC
-- 1680220800 // Fri Mar 31 2023 00:00:00 UTC
-- 1682812800 // Sun Apr 30 2023 00:00:00 UTC
-- 1685404800 // Tue May 30 2023 00:00:00 UTC
+- Epoch 0: 1669852800 // Thu Dec 01 2022 00:00:00 UTC
+- Epoch 1: 1672444800 // Sat Dec 31 2022 00:00:00 UTC
+- Epoch 2: 1675036800 // Mon Jan 30 2023 00:00:00 UTC
+- Epoch 3: 1677628800 // Wed Mar 01 2023 00:00:00 UTC
+- Epoch 4: 1680220800 // Fri Mar 31 2023 00:00:00 UTC
+- Epoch 5: 1682812800 // Sun Apr 30 2023 00:00:00 UTC
+- Epoch 6: 1685404800 // Tue May 30 2023 00:00:00 UTC
+
+### How does it work?
+
+1. EXP holders call `subscribe` when a new epoch starts
+2. The contract registers their EXP balance, which will be taken into account for the reward calculation of the current epoch
+3. If the total reward of a epoch exceeds 10k OP, the reward of each EXP holder is reduced accordingly
+4. Once an epoch passed, EXP holders will be able to claim their reward via `claimOP`
+5. Back to step 1.
+
+At Epoch 0 only subscribing is possible, at Epoch 6 only claiming is possible - unless the duration gets extended by an owner.
