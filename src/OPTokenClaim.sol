@@ -81,7 +81,7 @@ contract OPTokenClaim is Ownable {
         }
     }
 
-    // returns last epoch where claims are open
+    /// returns last epoch where claims are open
     function maxEpoch() external view returns (uint256) {
         return config.maxEpoch;
     }
@@ -125,7 +125,7 @@ contract OPTokenClaim is Ownable {
             expBalance = MAX_EXP;
         }
 
-        epochs[epoch].addressToEXP[account] = uint128(expBalance);
+        epochs[epoch].addressToEXP[account] = expBalance;
         epochs[epoch].totalEXP += uint128(expBalance);
         epochs[epoch].numAccounts++;
 
