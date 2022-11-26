@@ -8,6 +8,8 @@ import "./tokens/EXP.sol";
 import "./tokens/OP.sol";
 
 contract ClaimOPTest is Test {
+    event OPClaimed(address indexed to, uint256 epoch, uint256 amount);
+
     // claim contract
     OPTokenClaim public claimContract;
 
@@ -16,8 +18,8 @@ contract ClaimOPTest is Test {
     EthernautExperience public EXP;
 
     // test accounts
-    address public alice = address(100);
-    address public bob = address(101);
+    address public alice = makeAddr("alice");
+    address public bob = makeAddr("bob");
 
     // start unix timestamp: Thu Dec 01 2022 00:00:00 UTC
     uint256 start = 1669852800;
@@ -31,7 +33,12 @@ contract ClaimOPTest is Test {
         EXP = new EthernautExperience();
 
         // we assume this address is the OP token treasury
-        claimContract = new OPTokenClaim(address(EXP), address(OP), address(this));
+        claimContract = new OPTokenClaim(
+            address(EXP),
+            address(OP),
+            address(this)
+        );
+
         OP.mint(address(this), 300_000 ether);
 
         // allow OPTokenClaim to spend 5000 OP
@@ -41,8 +48,17 @@ contract ClaimOPTest is Test {
         EXP.mint(alice, 10 ether);
     }
 
-    function testAliceClaim() public {
+    function testClaimBeforeStart() public {
+        vm.warp(start - 1);
+
+        vm.expectRevert("claim period not started");
+        claimContract.claimOP(alice);
+    }
+
+    function testExpOwnerCanClaim() public {
         // claim OP token for alice
+        vm.expectEmit(true, true, true, true);
+        emit OPClaimed(alice, 0, 46 ether);
         claimContract.claimOP(alice);
 
         // 10 EXP results in 46 OP per month (10 * 5 - 4)
@@ -56,7 +72,7 @@ contract ClaimOPTest is Test {
         assertEq(OP.balanceOf(alice), 46 ether * 2);
     }
 
-    function testBobClaim() public {
+    function testNonExpOwnerCanNotClaim() public {
         // bob has no EXP, so shouldnt be able to claim
         vm.expectRevert(bytes("address has no exp"));
         claimContract.claimOP(bob);
@@ -101,6 +117,21 @@ contract ClaimOPTest is Test {
         } else {
             assertEq(OP.balanceOf(bob), balance * 5 - 4 ether);
         }
+    }
+
+    function testExtendClaimAuth() public {
+        vm.expectRevert("Ownable: caller is not the owner");
+        vm.prank(bob);
+        claimContract.extendClaim(1);
+    }
+
+    function testExtendClaim() public {
+        assertEq(claimContract.maxEpoch(), 6);
+
+        // extend claim period by 1 month
+        claimContract.extendClaim(1);
+
+        assertEq(claimContract.maxEpoch(), 7);
     }
 
     function testClaimPeriod() public {
