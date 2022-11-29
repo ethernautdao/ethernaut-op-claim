@@ -119,14 +119,20 @@ contract OPTokenClaim is Ownable {
             expBalance = MAX_EXP;
         }
 
-        // if the account was already subscribed, we update the amount
-        unchecked {
+        // only add additional EXP tokens to totalEXP if account already subscribed
+        if (epochToSubscribedEXP[epochNum][account] != 0) {
+            uint256 subscribedEXP = epochToSubscribedEXP[epochNum][account];
             epochToSubscribedEXP[epochNum][account] = expBalance;
-            epoch.totalEXP += uint128(expBalance);
-            epoch.numAccounts++;
+            unchecked {
+                epoch.totalEXP += uint128(expBalance - subscribedEXP);
+            }
+        } else {
+            epochToSubscribedEXP[epochNum][account] = expBalance;
+            unchecked {
+                epoch.totalEXP += uint128(expBalance);
+                epoch.numAccounts++;
+            }
         }
-
-        epochs[epochNum] = epoch;
 
         emit Subscribed(account, epochNum, expBalance);
     }
@@ -183,18 +189,20 @@ contract OPTokenClaim is Ownable {
         uint256 totalEXP = epochs[epoch].totalEXP;
         uint256 subscribedAccounts = epochs[epoch].numAccounts;
 
-        uint256 totalReward = totalEXP * 5 - 4 ether * subscribedAccounts;
+        unchecked {
+            uint256 totalReward = totalEXP * 5 - 4 ether * subscribedAccounts;
 
-        // if total reward of given epoch is greater than 10k OP (MAX_REWARD), reduce reward
-        uint256 factor = 1 * 10 ** 15;
-        if (totalReward > MAX_REWARD) {
-            factor = MAX_REWARD * 10 ** 15 / totalReward;
+            // if total reward of given epoch is greater than 10k OP (MAX_REWARD), reduce reward
+            uint256 factor = 1 * 10 ** 18;
+            if (totalReward > MAX_REWARD) {
+                factor = MAX_REWARD * 10 ** 18 / totalReward;
+            }
+
+            // calculate individual reward
+            uint256 balanceAtEpoch = epochToSubscribedEXP[epoch][account];
+            uint256 reward = (balanceAtEpoch * 5 - 4 ether) * factor;
+
+            return (reward / 10 ** 18);
         }
-
-        // calculate individual reward
-        uint256 balanceAtEpoch = epochToSubscribedEXP[epoch][account];
-        uint256 reward = (balanceAtEpoch * 5 - 4 ether) * factor;
-
-        return (reward / 10 ** 15);
     }
 }
