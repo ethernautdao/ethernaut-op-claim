@@ -126,6 +126,46 @@ contract ClaimOPTest is Test {
         claimContract.claimOP(alice);
     }
 
+    function testClaimingResubscribes() public {
+        // first subscribe for reward distribution
+        claimContract.subscribe(alice);
+
+        // fast forward one month
+        vm.warp(30 days + start + 1);
+
+        // claim OP token for alice
+        claimContract.claimOP(alice);
+
+        // fast forward one month
+        vm.warp(60 days + start + 1);
+
+        // claim OP token for alice again
+        claimContract.claimOP(alice);
+
+        // alice should own 92 OP now
+        assertEq(OP.balanceOf(alice), 46 ether * 2);
+    }
+
+    function testResubscribingUpdatesBalance() public {
+        // first subscribe for reward distribution
+        claimContract.subscribe(alice);
+
+        // mint 10 more EXP to Alice
+        EXP.mint(alice, 10 ether);
+
+        // alice should now have 20 EXP
+        assertEq(EXP.balanceOf(alice), 20 ether);
+
+        // but her subscribed balance is still only 10 EXP
+        assertEq(claimContract.epochToSubscribedEXP(0, alice), 10 ether);
+
+        // alice can resubscribe
+        claimContract.subscribe(alice);
+
+        // her subscribed balance should have been updated
+        assertEq(claimContract.epochToSubscribedEXP(0, alice), 20 ether);
+    }
+
     function testEXPLimit() public {
         // mint 200 EXP to Bob
         EXP.mint(bob, 200 ether);

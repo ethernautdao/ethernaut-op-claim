@@ -4,8 +4,6 @@ pragma solidity 0.8.15;
 import "openzeppelin-contracts/token/ERC20/IERC20.sol";
 import "openzeppelin-contracts/access/Ownable.sol";
 
-// TODO: claiming should automatically renew subscription
-
 contract OPTokenClaim is Ownable {
     // EXP and OP token
     IERC20 public immutable EXP;
@@ -104,7 +102,7 @@ contract OPTokenClaim is Ownable {
     /* ========== USER FUNCTIONS ========== */
 
     /// subscribe to reward distribution for current epoch
-    function subscribe(address account) external {
+    function subscribe(address account) public {
         Config memory _config = config;
 
         // epoch 0 is the first
@@ -112,8 +110,6 @@ contract OPTokenClaim is Ownable {
         require(epochNum < _config.maxEpoch, "claims ended");
 
         EpochInfo storage epoch = epochs[epochNum];
-
-        require(epochToSubscribedEXP[epochNum][account] == 0, "already subscribed for this epoch");
 
         uint256 expBalance = EXP.balanceOf(account);
         require(expBalance > 0, "address has no exp");
@@ -123,6 +119,7 @@ contract OPTokenClaim is Ownable {
             expBalance = MAX_EXP;
         }
 
+        // if the account was already subscribed, we update the amount
         unchecked {
             epochToSubscribedEXP[epochNum][account] = expBalance;
             epoch.totalEXP += uint128(expBalance);
@@ -160,6 +157,11 @@ contract OPTokenClaim is Ownable {
         require(OP.transferFrom(treasury, account, OPReward), "Transfer failed");
 
         emit OPClaimed(account, lastEpochNum, OPReward);
+
+        if (epochNum < _config.maxEpoch) {
+            // subscribe for next epoch
+            subscribe(account);
+        }
     }
 
     /// @dev reverts if claims have not started yet
