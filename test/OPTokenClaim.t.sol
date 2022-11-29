@@ -88,7 +88,7 @@ contract ClaimOPTest is Test {
 
         // claim OP token for alice
         vm.expectEmit(true, true, true, true);
-        emit OPClaimed(alice, 0, 46 ether); // 10 EXP results in 46 OP per month (10 * 5 - 4)
+        emit OPClaimed(alice, 0, 50 ether); // 10 EXP results in 50 OP per month
         claimContract.claimOP(alice);
 
         // should have automatically subscribed for new epoch
@@ -98,11 +98,11 @@ contract ClaimOPTest is Test {
         vm.warp(60 days + start);
 
         vm.expectEmit(true, true, true, true);
-        emit OPClaimed(alice, 1, 46 ether);
+        emit OPClaimed(alice, 1, 50 ether);
         claimContract.claimOP(alice);
 
-        // alice should own 92 OP now
-        assertEq(OP.balanceOf(alice), 46 ether * 2);
+        // alice should own 100 OP now
+        assertEq(OP.balanceOf(alice), 100 ether);
     }
 
     function testNonExpOwnerCanNotSubscribe() public {
@@ -133,7 +133,7 @@ contract ClaimOPTest is Test {
 
         // claim for epoch 0
         vm.expectEmit(true, true, true, true);
-        emit OPClaimed(alice, 0, 46 ether);
+        emit OPClaimed(alice, 0, 50 ether);
         claimContract.claimOP(alice);
 
         // fast forward 1 week
@@ -160,8 +160,8 @@ contract ClaimOPTest is Test {
         // claim OP token for alice again
         claimContract.claimOP(alice);
 
-        // alice should own 92 OP now
-        assertEq(OP.balanceOf(alice), 46 ether * 2);
+        // alice should own 100 OP now
+        assertEq(OP.balanceOf(alice), 100 ether);
     }
 
     function testResubscribingUpdatesBalance() public {
@@ -212,9 +212,9 @@ contract ClaimOPTest is Test {
         vm.warp(30 days + start);
 
         // claim OP token for bob
-        // should transfer 491 OP (max claim amount)
+        // should transfer 495 OP (max claim amount)
         vm.expectEmit(true, true, true, true);
-        emit OPClaimed(bob, 0, 491 ether);
+        emit OPClaimed(bob, 0, 495 ether);
         claimContract.claimOP(bob);
     }
 
@@ -230,13 +230,13 @@ contract ClaimOPTest is Test {
         vm.warp(30 days + start);
 
         // should always mint the correct amount:
-        // 491 OP for EXP > 99
-        // EXP * 5 - 4 for EXP < 99
+        // 495 OP for EXP > 99
+        // EXP * 5 for EXP <= 99
         claimContract.claimOP(bob);
         if (balance > 99 ether) {
-            assertEq(OP.balanceOf(bob), 491 ether);
+            assertEq(OP.balanceOf(bob), 495 ether);
         } else {
-            assertEq(OP.balanceOf(bob), balance * 5 - 4 ether);
+            assertEq(OP.balanceOf(bob), balance * 5);
         }
     }
 
@@ -261,7 +261,7 @@ contract ClaimOPTest is Test {
 
         // but claiming for past epoch (epoch 5) should still be possible
         vm.expectEmit(true, true, true, true);
-        emit OPClaimed(alice, 5, 46 ether);
+        emit OPClaimed(alice, 5, 50 ether);
         claimContract.claimOP(alice);
 
         // it shouldnt automatically resubscribe this time
@@ -274,6 +274,28 @@ contract ClaimOPTest is Test {
         vm.expectEmit(true, true, true, true);
         emit Subscribed(alice, 6, 10 ether);
         claimContract.subscribe(alice);
+    }
+
+    /// @dev tests that there are no rounding errors when operating at the reward limit
+    function testReduceRewardLimit() public {
+        // mint 20 EXP to 100 accounts and subscribe to reward dist
+        for (uint256 i = 100; i < 200; i++) {
+            EXP.mint(vm.addr(i), 20 ether);
+            claimContract.subscribe(vm.addr(i));
+        }
+
+        assertEq(claimContract.totalEXPAtEpoch(0), 2000 ether);
+
+        // fast forward one month
+        vm.warp(30 days + start);
+
+        // total OP reward for epoch 0 is 10k OP (aka the limit)
+        // factor should be 1.0
+        // so reward for each individual user should be
+        // (20 EXP * 5) * 1.0 = 100 OP
+        vm.expectEmit(true, true, true, true);
+        emit OPClaimed(vm.addr(100), 0, 100 ether);
+        claimContract.claimOP(vm.addr(100));
     }
 
     function testReducedReward() public {
@@ -290,11 +312,53 @@ contract ClaimOPTest is Test {
         vm.warp(30 days + start);
 
         // total OP reward for epoch 0 is 10311 OP
-        // factor should be 0.9698...
+        // factor should be 0.9620...
         // so reward for each individual user should be
-        // (99 EXP * 5 - 4) * 0.9698.. = 476.19047.. OP
+        // (99 EXP * 5) * 0.9620.. = 476.19047.. OP
         vm.expectEmit(true, true, true, true);
-        emit OPClaimed(vm.addr(100), 0, 476_190476190476190365);
+        emit OPClaimed(vm.addr(100), 0, 476_190476190476190000);
+        claimContract.claimOP(vm.addr(100));
+    }
+
+    function testReducedReward50Percent() public {
+        // mint 40 EXP to 100 accounts and subscribe to reward dist
+        for (uint256 i = 100; i < 200; i++) {
+            EXP.mint(vm.addr(i), 40 ether);
+            claimContract.subscribe(vm.addr(i));
+        }
+
+        assertEq(claimContract.totalEXPAtEpoch(0), 4000 ether);
+
+        // fast forward one month
+        vm.warp(30 days + start);
+
+        // total OP reward for epoch 0 is 20k OP
+        // factor should be 0.5
+        // so reward for each individual user should be
+        // (40 EXP * 5) * 0.5 = 100 OP
+        vm.expectEmit(true, true, true, true);
+        emit OPClaimed(vm.addr(100), 0, 100 ether);
+        claimContract.claimOP(vm.addr(100));
+    }
+
+    function testReducedReward99Percent() public {
+        // mint 50 EXP to 4k accounts (!) and subscribe to reward dist
+        for (uint256 i = 100; i < 4_100; i++) {
+            EXP.mint(vm.addr(i), 50 ether);
+            claimContract.subscribe(vm.addr(i));
+        }
+
+        assertEq(claimContract.totalEXPAtEpoch(0), 200_000 ether);
+
+        // fast forward one month
+        vm.warp(30 days + start);
+
+        // total OP reward for epoch 0 is 1m OP
+        // factor should be 0.01
+        // so reward for each individual user should be
+        // (50 EXP * 5) * 0.01 = 2.5 OP
+        vm.expectEmit(true, true, true, true);
+        emit OPClaimed(vm.addr(100), 0, 2.5 ether);
         claimContract.claimOP(vm.addr(100));
     }
 }
