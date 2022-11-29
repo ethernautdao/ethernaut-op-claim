@@ -186,16 +186,12 @@ contract ClaimOPTest is Test {
         // total subscribed EXP should have increased by 10
         assertEq(claimContract.totalEXPAtEpoch(0), 20 ether);
 
-        // number of subscribed accounts should be 1
-        assertEq(claimContract.accountsAtEpoch(0), 1);
-
         // alice subscribes again with unchanged EXP balance
         claimContract.subscribe(alice);
 
         // subscribed balance, totalEXP and numAccoutns should stay the same
         assertEq(claimContract.epochToSubscribedEXP(0, alice), 20 ether);
         assertEq(claimContract.totalEXPAtEpoch(0), 20 ether);
-        assertEq(claimContract.accountsAtEpoch(0), 1);
     }
 
     function testEXPLimit() public {
@@ -316,7 +312,8 @@ contract ClaimOPTest is Test {
         // so reward for each individual user should be
         // (99 EXP * 5) * 0.9620.. = 476.19047.. OP
         vm.expectEmit(true, true, true, true);
-        emit OPClaimed(vm.addr(100), 0, 476_190476190476190000);
+
+        emit OPClaimed(vm.addr(100), 0, 476_190476190476190476);
         claimContract.claimOP(vm.addr(100));
     }
 
