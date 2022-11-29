@@ -165,15 +165,15 @@ contract OPTokenClaim is Ownable {
         // set claimed to true
         epochToSubscribedEXP[lastEpochNum][account] = 0;
 
+        // subscribe for next epoch
+        if (epochNum < _config.maxEpoch) {
+            subscribe(account);
+        }
+
         // transfer OP to account
         require(OP.transferFrom(treasury, account, OPReward), "Transfer failed");
 
         emit OPClaimed(account, lastEpochNum, OPReward);
-
-        if (epochNum < _config.maxEpoch) {
-            // subscribe for next epoch
-            subscribe(account);
-        }
     }
 
     /// @dev reverts if claims have not started yet
