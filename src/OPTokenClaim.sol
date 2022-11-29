@@ -25,12 +25,7 @@ contract OPTokenClaim is Ownable {
 
     Config public config;
 
-    struct EpochInfo {
-        // total subscribed EXP (overflows at 3.4 * 10^20 EXP)
-        uint128 totalEXP;
-    }
-
-    EpochInfo[] public epochs;
+    mapping(uint256 => uint256) public totalEXPAtEpoch;
 
     mapping(uint256 => mapping(address => uint256)) public epochToSubscribedEXP;
 
@@ -50,9 +45,6 @@ contract OPTokenClaim is Ownable {
             maxEpoch: 6 // first claim duration runs for 6 months
         });
 
-        // push first epoch
-        epochs.push();
-
         // transfer ownership to multisig
         _transferOwnership(treasury);
     }
@@ -70,11 +62,9 @@ contract OPTokenClaim is Ownable {
 
     /* ========== VIEWS ========== */
 
-    /// returns current epoch number
+    /// @return epochNumber the current epoch number
     function currentEpoch() external view returns (uint256 epochNumber) {
-        unchecked {
-            epochNumber = (block.timestamp - config.start) / 30 days;
-        }
+        return _currentEpoch(config);
     }
 
     /// returns last epoch where claims are open
@@ -82,14 +72,20 @@ contract OPTokenClaim is Ownable {
         return config.maxEpoch;
     }
 
-    /// calculates reward for account at given epoch
-    function rewardAtEpoch(address account, uint256 epoch) external view returns (uint256) {
-        return _calcReward(account, epoch);
-    }
+    /// @return reward the amount of OP tokens to be claimed
+    function calcReward(address account, uint256 epochNum) public view returns (uint256 reward) {
+        unchecked {
+            // calculate the total reward of given epoch
+            uint256 totalReward = totalEXPAtEpoch[epochNum] * 5;
 
-    /// returns total subscribed EXP at epoch
-    function totalEXPAtEpoch(uint256 epoch) external view returns (uint128) {
-        return epochs[epoch].totalEXP;
+            // calculate individual reward
+            uint256 subscribedEXP = epochToSubscribedEXP[epochNum][account];
+            if (totalReward > MAX_REWARD) {
+                reward = 5 * subscribedEXP * MAX_REWARD / totalReward;
+            } else {
+                reward = 5 * subscribedEXP;
+            }
+        }
     }
 
     /* ========== USER FUNCTIONS ========== */
@@ -102,8 +98,6 @@ contract OPTokenClaim is Ownable {
         uint256 epochNum = _currentEpoch(_config);
         require(epochNum < _config.maxEpoch, "claims ended");
 
-        EpochInfo storage epoch = epochs[epochNum];
-
         uint256 expBalance = EXP.balanceOf(account);
         require(expBalance > 0, "address has no exp");
 
@@ -113,16 +107,17 @@ contract OPTokenClaim is Ownable {
         }
 
         uint256 subscribedEXP = epochToSubscribedEXP[epochNum][account];
-
         if (subscribedEXP == expBalance) {
             // no change
             return;
         }
 
+        // update total EXP at epoch
         unchecked {
-            epoch.totalEXP += uint128(expBalance - subscribedEXP);
+            totalEXPAtEpoch[epochNum] += expBalance - subscribedEXP;
         }
 
+        // update subscribed EXP for this account
         epochToSubscribedEXP[epochNum][account] = expBalance;
 
         emit Subscribed(account, epochNum, expBalance);
@@ -145,9 +140,9 @@ contract OPTokenClaim is Ownable {
         // check if subscribed and if already claimed
         require(epochToSubscribedEXP[lastEpochNum][account] > 0, "didn't subscribe or already claimed");
 
-        uint256 OPReward = _calcReward(account, lastEpochNum);
+        uint256 OPReward = calcReward(account, lastEpochNum);
 
-        // set claimed to true
+        // mark as claimed
         epochToSubscribedEXP[lastEpochNum][account] = 0;
 
         // subscribe for next epoch
@@ -162,31 +157,10 @@ contract OPTokenClaim is Ownable {
     }
 
     /// @dev reverts if claims have not started yet
-    function _currentEpoch(Config memory _config) internal returns (uint256 epochNumber) {
+    function _currentEpoch(Config memory _config) internal view returns (uint256 epochNumber) {
         require(block.timestamp >= _config.start, "reward dist not started yet");
         unchecked {
             epochNumber = (block.timestamp - _config.start) / 30 days;
-        }
-
-        // push new epoch to array if needed
-        while ((epochs.length - 1) < epochNumber) {
-            epochs.push();
-        }
-    }
-
-    // calculates reward of account for given epoch
-    function _calcReward(address account, uint256 epochNum) public view returns (uint256 reward) {
-        unchecked {
-            // calculate the total reward of given epoch
-            uint256 totalReward = epochs[epochNum].totalEXP * 5;
-
-            // calculate individual reward
-            uint256 subscribedEXP = epochToSubscribedEXP[epochNum][account];
-            if (totalReward > MAX_REWARD) {
-                reward = 5 * subscribedEXP * MAX_REWARD / totalReward;
-            } else {
-                reward = 5 * subscribedEXP;
-            }
         }
     }
 }
