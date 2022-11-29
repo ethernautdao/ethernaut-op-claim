@@ -26,8 +26,6 @@ contract OPTokenClaim is Ownable {
     Config public config;
 
     struct EpochInfo {
-        // number of subscribed accounts
-        uint128 numAccounts;
         // total subscribed EXP (overflows at 3.4 * 10^20 EXP)
         uint128 totalEXP;
     }
@@ -89,11 +87,6 @@ contract OPTokenClaim is Ownable {
         return _calcReward(account, epoch);
     }
 
-    /// returns number of subscribed accounts at epoch
-    function accountsAtEpoch(uint256 epoch) external view returns (uint128) {
-        return epochs[epoch].numAccounts;
-    }
-
     /// returns total subscribed EXP at epoch
     function totalEXPAtEpoch(uint256 epoch) external view returns (uint128) {
         return epochs[epoch].totalEXP;
@@ -126,16 +119,8 @@ contract OPTokenClaim is Ownable {
             return;
         }
 
-        // only add additional EXP tokens to totalEXP if account already subscribed
-        if (subscribedEXP != 0) {
-            unchecked {
-                epoch.totalEXP += uint128(expBalance - subscribedEXP);
-            }
-        } else {
-            unchecked {
-                epoch.totalEXP += uint128(expBalance);
-                epoch.numAccounts++;
-            }
+        unchecked {
+            epoch.totalEXP += uint128(expBalance - subscribedEXP);
         }
 
         epochToSubscribedEXP[epochNum][account] = expBalance;
@@ -191,24 +176,17 @@ contract OPTokenClaim is Ownable {
 
     // calculates reward of account for given epoch
     function _calcReward(address account, uint256 epochNum) public view returns (uint256 reward) {
-        // calculate the total reward of given epoch
-        EpochInfo storage epoch = epochs[epochNum];
-        uint256 totalEXP = epoch.totalEXP;
-        uint256 subscribedAccounts = epoch.numAccounts;
-
         unchecked {
-            uint256 totalReward = totalEXP * 5;
-
-            // if total reward of given epoch is greater than 10k OP (MAX_REWARD), reduce reward
-            // e.g. if total reward is 1.5 x MAX_REWARD, reduce reward by 50%
-            uint256 factor = 1e18;
-            if (totalReward > MAX_REWARD) {
-                factor = MAX_REWARD * 1e18 / totalReward;
-            }
+            // calculate the total reward of given epoch
+            uint256 totalReward = epochs[epochNum].totalEXP * 5;
 
             // calculate individual reward
             uint256 subscribedEXP = epochToSubscribedEXP[epochNum][account];
-            reward = 5 * subscribedEXP * factor / 1e18;
+            if (totalReward > MAX_REWARD) {
+                reward = 5 * subscribedEXP * MAX_REWARD / totalReward;
+            } else {
+                reward = 5 * subscribedEXP;
+            }
         }
     }
 }
