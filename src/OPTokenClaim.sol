@@ -190,10 +190,11 @@ contract OPTokenClaim is Ownable {
     }
 
     // calculates reward of account for given epoch
-    function _calcReward(address account, uint256 epoch) internal view returns (uint256) {
+    function _calcReward(address account, uint256 epochNum) internal view returns (uint256) {
         // calculate the total reward of given epoch
-        uint256 totalEXP = epochs[epoch].totalEXP;
-        uint256 subscribedAccounts = epochs[epoch].numAccounts;
+        EpochInfo storage epoch = epochs[epochNum];
+        uint256 totalEXP = epoch.totalEXP;
+        uint256 subscribedAccounts = epoch.numAccounts;
 
         unchecked {
             uint256 totalReward = totalEXP * 5 - 4 ether * subscribedAccounts;
@@ -205,7 +206,7 @@ contract OPTokenClaim is Ownable {
             }
 
             // calculate individual reward
-            uint256 balanceAtEpoch = epochToSubscribedEXP[epoch][account];
+            uint256 balanceAtEpoch = epochToSubscribedEXP[epochNum][account];
             uint256 reward = (balanceAtEpoch * 5 - 4 ether) * factor;
 
             return (reward / 10 ** 18);
