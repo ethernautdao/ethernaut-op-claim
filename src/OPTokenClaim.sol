@@ -4,6 +4,8 @@ pragma solidity 0.8.15;
 import "openzeppelin-contracts/token/ERC20/IERC20.sol";
 import "openzeppelin-contracts/access/Ownable.sol";
 
+// TODO: claiming should automatically renew subscription
+
 contract OPTokenClaim is Ownable {
     // EXP and OP token
     IERC20 public immutable EXP;
@@ -30,13 +32,11 @@ contract OPTokenClaim is Ownable {
         uint128 numAccounts;
         // total subscribed EXP (overflows at 3.4 * 10^20 EXP)
         uint128 totalEXP;
-        // address to subscribed EXP
-        mapping(address => uint256) addressToEXP;
-        // address to claimed
-        mapping(address => bool) addressClaimed;
     }
 
     EpochInfo[] public epochs;
+
+    mapping(uint256 => mapping(address => uint256)) public epochToSubscribedEXP;
 
     event ClaimExtended(uint256 indexed months);
     event Subscribed(address indexed account, uint256 epoch, uint256 amount);
@@ -62,7 +62,7 @@ contract OPTokenClaim is Ownable {
     }
 
     /* ========== ADMIN CONFIGURATION ========== */
-    
+
     /// extend duration of claim period
     /// @param months number of months to extend claim period
     function extendClaim(uint256 months) external onlyOwner {
@@ -101,11 +101,6 @@ contract OPTokenClaim is Ownable {
         return epochs[epoch].totalEXP;
     }
 
-    /// returns subscribed EXP of account at given epoch and if account claimed
-    function accountInfoAtEpoch(address account, uint256 epoch) external view returns (uint256, bool) {
-        return (epochs[epoch].addressToEXP[account], epochs[epoch].addressClaimed[account]);
-    }
-
     /* ========== USER FUNCTIONS ========== */
 
     /// subscribe to reward distribution for current epoch
@@ -113,9 +108,12 @@ contract OPTokenClaim is Ownable {
         Config memory _config = config;
 
         // epoch 0 is the first
-        uint256 epoch = _currentEpoch(_config);
-        require(epoch < _config.maxEpoch, "claims ended");
-        require(epochs[epoch].addressToEXP[account] == 0, "already subscribed for this epoch");
+        uint256 epochNum = _currentEpoch(_config);
+        require(epochNum < _config.maxEpoch, "claims ended");
+
+        EpochInfo storage epoch = epochs[epochNum];
+
+        require(epochToSubscribedEXP[epochNum][account] == 0, "already subscribed for this epoch");
 
         uint256 expBalance = EXP.balanceOf(account);
         require(expBalance > 0, "address has no exp");
@@ -125,11 +123,15 @@ contract OPTokenClaim is Ownable {
             expBalance = MAX_EXP;
         }
 
-        epochs[epoch].addressToEXP[account] = expBalance;
-        epochs[epoch].totalEXP += uint128(expBalance);
-        epochs[epoch].numAccounts++;
+        unchecked {
+            epochToSubscribedEXP[epochNum][account] = expBalance;
+            epoch.totalEXP += uint128(expBalance);
+            epoch.numAccounts++;
+        }
 
-        emit Subscribed(account, epoch, expBalance);
+        epochs[epochNum] = epoch;
+
+        emit Subscribed(account, epochNum, expBalance);
     }
 
     /// claim subscribed OP reward
@@ -137,23 +139,27 @@ contract OPTokenClaim is Ownable {
         Config memory _config = config;
 
         // users claim reward for last epoch, so claims start at epoch 1
-        uint256 epoch = _currentEpoch(_config);
-        require(epoch > 0, "claims have not started yet");
-        require(epoch - 1 < _config.maxEpoch, "claims ended");
+        uint256 epochNum = _currentEpoch(_config);
+        require(epochNum > 0, "claims have not started yet");
+
+        uint256 lastEpochNum;
+        unchecked {
+            lastEpochNum = epochNum - 1;
+        }
+        require(lastEpochNum < _config.maxEpoch, "claims ended");
 
         // check if subscribed and if already claimed
-        require(epochs[epoch - 1].addressToEXP[account] > 0, "didn't subscribe");
-        require(!epochs[epoch - 1].addressClaimed[account], "already claimed for this epoch");
+        require(epochToSubscribedEXP[lastEpochNum][account] > 0, "didn't subscribe or already claimed");
 
-        uint256 OPReward = _calcReward(account, epoch - 1);
+        uint256 OPReward = _calcReward(account, lastEpochNum);
 
         // set claimed to true
-        epochs[epoch - 1].addressClaimed[account] = true;
+        epochToSubscribedEXP[lastEpochNum][account] = 0;
 
         // transfer OP to account
         require(OP.transferFrom(treasury, account, OPReward), "Transfer failed");
 
-        emit OPClaimed(account, epoch - 1, OPReward);
+        emit OPClaimed(account, lastEpochNum, OPReward);
     }
 
     /// @dev reverts if claims have not started yet
@@ -177,14 +183,14 @@ contract OPTokenClaim is Ownable {
 
         uint256 totalReward = totalEXP * 5 - 4 ether * subscribedAccounts;
 
-        // if total reward of given epoch is greater than 10k OP (MAX_REWARD), reduce reward       
+        // if total reward of given epoch is greater than 10k OP (MAX_REWARD), reduce reward
         uint256 factor = 1 * 10 ** 15;
         if (totalReward > MAX_REWARD) {
             factor = MAX_REWARD * 10 ** 15 / totalReward;
         }
 
         // calculate individual reward
-        uint256 balanceAtEpoch = epochs[epoch].addressToEXP[account];
+        uint256 balanceAtEpoch = epochToSubscribedEXP[epoch][account];
         uint256 reward = (balanceAtEpoch * 5 - 4 ether) * factor;
 
         return (reward / 10 ** 15);
