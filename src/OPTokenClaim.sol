@@ -119,20 +119,26 @@ contract OPTokenClaim is Ownable {
             expBalance = MAX_EXP;
         }
 
+        uint256 subscribedEXP = epochToSubscribedEXP[epochNum][account];
+
+        if (subscribedEXP == expBalance) {
+            // no change
+            return;
+        }
+
         // only add additional EXP tokens to totalEXP if account already subscribed
-        if (epochToSubscribedEXP[epochNum][account] != 0) {
-            uint256 subscribedEXP = epochToSubscribedEXP[epochNum][account];
-            epochToSubscribedEXP[epochNum][account] = expBalance;
+        if (subscribedEXP != 0) {
             unchecked {
                 epoch.totalEXP += uint128(expBalance - subscribedEXP);
             }
         } else {
-            epochToSubscribedEXP[epochNum][account] = expBalance;
             unchecked {
                 epoch.totalEXP += uint128(expBalance);
                 epoch.numAccounts++;
             }
         }
+
+        epochToSubscribedEXP[epochNum][account] = expBalance;
 
         emit Subscribed(account, epochNum, expBalance);
     }
