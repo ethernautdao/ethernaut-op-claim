@@ -11,13 +11,13 @@ A Cap at 99 EXP is considered for now.
 ### Claimable amount
 
 Claimable OP will follow this function:
-`Claimable OP = 5 * (EXP balance) - 4`
+`Claimable OP = 5 * (EXP balance)`
 
 This will result in
 
 ```
-1EXP = 1 claimable OP
-99 EXP (max lvl) = 491 claimable OP
+1 EXP = 5 claimable OP
+99 EXP = 495 claimable OP
 ```
 
 ### Duration
