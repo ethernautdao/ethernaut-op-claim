@@ -46,7 +46,7 @@ contract OPTokenClaim is Ownable {
         });
 
         // transfer ownership to multisig
-        _transferOwnership(treasury);
+        _transferOwnership(_treasury);
     }
 
     /* ========== ADMIN CONFIGURATION ========== */
