@@ -108,7 +108,7 @@ contract OPTokenClaim is Ownable {
 
         uint256 subscribedEXP = epochToSubscribedEXP[epochNum][account];
         if (subscribedEXP == expBalance) {
-            // no change
+            emit Subscribed(account, epochNum, expBalance);
             return;
         }
 
