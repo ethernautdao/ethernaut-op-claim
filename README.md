@@ -20,6 +20,8 @@ This will result in
 99 EXP = 495 claimable OP
 ```
 
+The $OP distribution will be 10.000 OP/month. If there is more than 10k OP to be claimed, the distribution will get everyone's balances and reduce the claimable OP of each address. We will request every EXP holder to subscribe to the distribution and pick the total OP to be claimed at the end of each epoch.  
+
 ### Duration
 
 From https://gov.optimism.io/t/review-gf-phase-1-proposal-cycle-8-ethernautdao/3800
