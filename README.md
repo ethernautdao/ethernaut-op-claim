@@ -10,7 +10,7 @@ Claimable OP = 5 * (EXP balance)
 ```
 E.g. if someone holds 10 EXP, he/she will be able to claim 50 OP tokens per month. A cap at 99 EXP is considered for now. 
 
-EXP tokens are earned by mentoring, creating educational content, or contributing to the Ethereum ecosystem in any other way. Everyone can nominate people to receive EXP in #exp-nominations on our Discord. If the nomination got enough votes, it will be consideres in the next EXP distribution. 
+EXP tokens are earned by mentoring, creating educational content, or contributing to the Ethereum ecosystem in any other way. Everyone can nominate people to receive EXP in #exp-nominations on our Discord. If the nomination gets enough votes, it will be considered in the next EXP distribution. 
 
 The $OP distribution will be 10.000 OP/month. If there is more than 10k OP to be claimed, the contract will get everyone's balances and reduce the claimable OP of each address. We will request every EXP holder to subscribe to the distribution and pick the total OP to be claimed at the end of each epoch.  
 
