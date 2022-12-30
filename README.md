@@ -1,34 +1,33 @@
-## OP claim contract
+## EthernautDAO OP claim
 
-From https://gov.optimism.io/t/review-gf-phase-1-proposal-cycle-7-ethernautdao/3500
+### What is it?
 
-> We combine a soulbound token (EXP) given to educational contributors with OP tokens as a liquid and transferable asset.
-> Any developer holding (EXP) will be enabled to proportionally claim OP tokens on a monthly basis.
-> EXP is earned by mentoring (10 EXP), creating developer educational content (3 EXP), hacking smart contracts (3 EXP), and reporting those hacks with educational content (3 EXP). We encourage these community members to provide liquidity and vote for Optimism proposals, but we will not enforce them. Every user is free to use their OP tokens as they see fit.
+We combine a soulbound token (EXP) given to educational contributors with OP tokens as a liquid and transferable asset. Anyone holding EXP is eligible to proportionally claim OP tokens on a monthly basis. 
 
-A Cap at 99 EXP is considered for now.
-
-### Claimable amount
-
-Claimable OP will follow this function:
-`Claimable OP = 5 * (EXP balance)`
-
-This will result in
-
+The amount EXP holders can claim follows this function:
 ```
-1 EXP = 5 claimable OP
-99 EXP = 495 claimable OP
+Claimable OP = 5 * (EXP balance)
 ```
+E.g. if someone holds 10 EXP, he/she will be able to claim 50 OP tokens per month. A cap at 99 EXP is considered for now. 
 
-The $OP distribution will be 10.000 OP/month. If there is more than 10k OP to be claimed, the distribution will get everyone's balances and reduce the claimable OP of each address. We will request every EXP holder to subscribe to the distribution and pick the total OP to be claimed at the end of each epoch.  
+EXP tokens are earned by mentoring, creating educational content, or contributing to the Ethereum ecosystem in any other way. Everyone can nominate people to receive EXP in #exp-nominations on our Discord. If the nomination got enough votes, it will be consideres in the next EXP distribution. 
+
+The $OP distribution will be 10.000 OP/month. If there is more than 10k OP to be claimed, the contract will get everyone's balances and reduce the claimable OP of each address. We will request every EXP holder to subscribe to the distribution and pick the total OP to be claimed at the end of each epoch.  
+
+### How does it work?
+
+1. EXP holders input their address and call `subscribe` on our [OPTokenClaim](https://optimistic.etherscan.io/address/0x9b0365ec449d929f62106368eb3dc58b3d578b0b#writeContract) contract when a new epoch starts
+2. The contract registers their EXP balance, which will be taken into account for the reward calculation of the current epoch
+3. Once an epoch passed, EXP holders will be able to claim their reward by calling `claimOP` on our claim contract
+5. Once you claimed your OP, the contract automatically resubscribes you for the next reward distribution
+
+If you subscribe and then earn more EXP, you can just resubscribe with your updated EXP balance. 
 
 ### Duration
 
-From https://gov.optimism.io/t/review-gf-phase-1-proposal-cycle-8-ethernautdao/3800
+The monthly claim of OP tokens will start on December 1st and runs for 6 months. Once this period is over all remaining OP tokens requested for mentors and for the monthly distribution will go back to the Optimism Foundation.
 
-> The monthly claim of OP tokens will start on December 1st and run for 6 months. Once this period is done all remaining OP tokens requested for mentors and monthly distribution, left in EthernautDAO treasury will go back to the Optimism Foundation.
-
-The owner can extend the claim period with function `extendClaim(uint256 months)`.
+The contract owner can extend the claim period by calling `extendClaim(uint256 months)`.
 
 ### Epoch dates
 
@@ -42,12 +41,16 @@ The first 6 Epoch start dates are:
 - Epoch 5: 1682812800 // Sun Apr 30 2023 00:00:00 UTC
 - Epoch 6: 1685404800 // Tue May 30 2023 00:00:00 UTC
 
-### How does it work?
+At Epoch 0 only subscribing is possible, at Epoch 6 only claiming is possible - unless the duration gets extended by the contract owner.
 
-1. EXP holders call `subscribe` when a new epoch starts
-2. The contract registers their EXP balance, which will be taken into account for the reward calculation of the current epoch
-3. If the total reward of a epoch exceeds 10k OP, the reward of each EXP holder is reduced accordingly
-4. Once an epoch passed, EXP holders will be able to claim their reward via `claimOP`
-5. Back to step 1.
+### Deployed contracts
 
-At Epoch 0 only subscribing is possible, at Epoch 6 only claiming is possible - unless the duration gets extended by an owner.
+- [OPTokenClaim](https://optimistic.etherscan.io/address/0x9b0365ec449d929f62106368eb3dc58b3d578b0b#writeContract): 0x9B0365ec449d929F62106368eb3DC58b3D578b0b
+- [EXP Token](https://optimistic.etherscan.io/address/0x6354Ce7509fB90d38f852F75b7A764eca6957629): 0x6354Ce7509fB90d38f852F75b7A764eca6957629
+- [EXP NFT](https://optimistic.etherscan.io/address/0xC057ef640A24a7acb02938666Aa9bad9B00046c9): 0xC057ef640A24a7acb02938666Aa9bad9B00046c9
+
+### Further info
+
+- [Discord](https://discord.gg/dNmZ7W2y)
+- [Optimism proposal](https://gov.optimism.io/t/review-gf-phase-1-proposal-cycle-8-ethernautdao/3800)
+- [EthernautDAO Github](https://github.com/ethernautdao)
