@@ -40,13 +40,28 @@ contract ClaimOPTest is Test {
             address(this)
         );
 
-        OP.mint(address(this), 300_000 ether);
+        OP.mint(address(this), 120_000 ether);
 
-        // allow OPTokenClaim to spend 5000 OP
-        OP.approve(address(claimContract), 5000 ether);
+        // allow OPTokenClaim to spend 10000 OP
+        OP.approve(address(claimContract), 10000 ether);
 
         // mint 10 EXP to Alice
         EXP.mint(alice, 10 ether);
+    }
+
+    function testExtendClaimAuth() public {
+        vm.expectRevert("Ownable: caller is not the owner");
+        vm.prank(bob);
+        claimContract.extendClaim(1);
+    }
+
+    function testExtendClaim() public {
+        assertEq(claimContract.maxEpoch(), 6);
+
+        // extend claim period by 1 month
+        claimContract.extendClaim(1);
+
+        assertEq(claimContract.maxEpoch(), 7);
     }
 
     function testSubscribeBeforeStart() public {
@@ -66,31 +81,32 @@ contract ClaimOPTest is Test {
     function testExpOwnerCanClaim() public {
         // first subscribe for reward distribution
         claimContract.subscribe(alice);
+        assertEq(claimContract.epochToSubscribedEXP(0, alice), 10 ether);
 
         // fast forward one month
-        vm.warp(30 days + start + 1);
+        vm.warp(30 days + start);
 
         // claim OP token for alice
         vm.expectEmit(true, true, true, true);
-        emit OPClaimed(alice, 0, 46 ether);
+        emit OPClaimed(alice, 0, 50 ether); // 10 EXP results in 50 OP per month
         claimContract.claimOP(alice);
 
-        // 10 EXP results in 46 OP per month (10 * 5 - 4)
-        assertEq(OP.balanceOf(alice), 46 ether);
+        // should have automatically subscribed for new epoch
+        assertEq(claimContract.epochToSubscribedEXP(1, alice), 10 ether);
 
-        // subscribe for reward distribution of new epoch
-        claimContract.subscribe(alice);
+        // fast forward one month and claim again
+        vm.warp(60 days + start);
 
-        // fast forward one month and one second and claim again
-        vm.warp(60 days + start + 1);
+        vm.expectEmit(true, true, true, true);
+        emit OPClaimed(alice, 1, 50 ether);
         claimContract.claimOP(alice);
 
-        // alice should own 92 OP now
-        assertEq(OP.balanceOf(alice), 46 ether * 2);
+        // alice should own 100 OP now
+        assertEq(OP.balanceOf(alice), 100 ether);
     }
 
     function testNonExpOwnerCanNotSubscribe() public {
-        // bob has no EXP, so shouldnt be able to claim
+        // bob has no EXP, so shouldnt be able to subscribe
         vm.expectRevert(bytes("address has no exp"));
         claimContract.subscribe(bob);
     }
@@ -99,31 +115,83 @@ contract ClaimOPTest is Test {
         // fast forward one month
         vm.warp(30 days + start + 1);
 
-        // bob has no EXP, so shouldnt be able to claim
-        vm.expectRevert(bytes("didn't subscribe"));
+        // bob has no EXP (and didnt subscribe), so shouldnt be able to claim
+        vm.expectRevert("didn't subscribe or already claimed");
         claimContract.claimOP(bob);
     }
 
     function testDoubleClaim() public {
         // first subscribe for reward distribution
-        claimContract.subscribe(alice);   
+        claimContract.subscribe(alice);
 
-        // try claiming in same epoch
-        vm.expectRevert("claims have not started yet");    
+        // claiming in same epoch should fail
+        vm.expectRevert("claims have not started yet");
         claimContract.claimOP(alice);
 
         // fast forward one month
-        vm.warp(30 days + start + 1);
+        vm.warp(30 days + start);
 
-        // claim first time
+        // claim for epoch 0
+        vm.expectEmit(true, true, true, true);
+        emit OPClaimed(alice, 0, 50 ether);
         claimContract.claimOP(alice);
 
         // fast forward 1 week
         vm.warp(30 days + start + 7 days);
 
-        // claim again, same epoch -> should fail
-        vm.expectRevert(bytes("already claimed for this epoch"));
+        // claim again for epoch 0 -> should fail
+        vm.expectRevert("didn't subscribe or already claimed");
         claimContract.claimOP(alice);
+    }
+
+    function testClaimingResubscribes() public {
+        // first subscribe for reward distribution
+        claimContract.subscribe(alice);
+
+        // fast forward one month
+        vm.warp(30 days + start);
+
+        // claim OP token for alice
+        claimContract.claimOP(alice);
+
+        // fast forward another month
+        vm.warp(60 days + start);
+
+        // claim OP token for alice again
+        claimContract.claimOP(alice);
+
+        // alice should own 100 OP now
+        assertEq(OP.balanceOf(alice), 100 ether);
+    }
+
+    function testResubscribingUpdatesBalance() public {
+        // first subscribe for reward distribution
+        claimContract.subscribe(alice);
+
+        // mint 10 more EXP to Alice
+        EXP.mint(alice, 10 ether);
+
+        // alice should now have 20 EXP
+        assertEq(EXP.balanceOf(alice), 20 ether);
+
+        // but her subscribed balance is still only 10 EXP
+        assertEq(claimContract.epochToSubscribedEXP(0, alice), 10 ether);
+
+        // alice can resubscribe
+        claimContract.subscribe(alice);
+
+        // her subscribed balance should have been updated
+        assertEq(claimContract.epochToSubscribedEXP(0, alice), 20 ether);
+
+        // total subscribed EXP should have increased by 10
+        assertEq(claimContract.totalEXPAtEpoch(0), 20 ether);
+
+        // alice subscribes again with unchanged EXP balance
+        claimContract.subscribe(alice);
+
+        // subscribed balance, totalEXP and numAccoutns should stay the same
+        assertEq(claimContract.epochToSubscribedEXP(0, alice), 20 ether);
+        assertEq(claimContract.totalEXPAtEpoch(0), 20 ether);
     }
 
     function testEXPLimit() public {
@@ -133,17 +201,20 @@ contract ClaimOPTest is Test {
         // subscribe for reward distribution
         claimContract.subscribe(bob);
 
+        // subscribed EXP should be 99
+        assertEq(claimContract.epochToSubscribedEXP(0, bob), 99 ether);
+
         // fast forward one month
-        vm.warp(30 days + start + 1);
+        vm.warp(30 days + start);
 
         // claim OP token for bob
-        // should transfer 491 OP (max claim amount)
+        // should transfer 495 OP (max claim amount)
         vm.expectEmit(true, true, true, true);
-        emit OPClaimed(bob, 0, 491 ether);
+        emit OPClaimed(bob, 0, 495 ether);
         claimContract.claimOP(bob);
     }
 
-     function testFuzzClaiming(uint256 balance) public {
+    function testFuzzClaiming(uint256 balance) public {
         // test balances between 1 and 1000 EXP
         balance = bound(balance, 1 ether, 1000 ether);
 
@@ -152,55 +223,45 @@ contract ClaimOPTest is Test {
         claimContract.subscribe(bob);
 
         // fast forward one month
-        vm.warp(30 days + start + 1);        
-        claimContract.claimOP(bob);
+        vm.warp(30 days + start);
 
         // should always mint the correct amount:
-        // 491 OP for EXP > 99
-        // EXP * 5 - 4 for EXP < 99
+        // 495 OP for EXP > 99
+        // EXP * 5 for EXP <= 99
+        claimContract.claimOP(bob);
         if (balance > 99 ether) {
-            assertEq(OP.balanceOf(bob), 491 ether);
+            assertEq(OP.balanceOf(bob), 495 ether);
         } else {
-            assertEq(OP.balanceOf(bob), balance * 5 - 4 ether);
+            assertEq(OP.balanceOf(bob), balance * 5);
         }
-    } 
-
-    function testExtendClaimAuth() public {
-        vm.expectRevert("Ownable: caller is not the owner");
-        vm.prank(bob);
-        claimContract.extendClaim(1);
-    }
-
-    function testExtendClaim() public {
-        assertEq(claimContract.maxEpoch(), 6);
-
-        // extend claim period by 1 month
-        claimContract.extendClaim(1);
-
-        assertEq(claimContract.maxEpoch(), 7);
     }
 
     function testMaxClaimPeriod() public {
-        // subscribe and claim for first 5 epochs (epoch 0 .. 4)
+        // first subscribe
+        claimContract.subscribe(alice);
+
+        // claim for first 5 epochs (epoch 0 .. 4)
         for (uint256 i = 1; i < 6; i++) {
-            // first subscribe
-            claimContract.subscribe(alice);
-            
-            // then claim when epoch is over
-            vm.warp(30 days * i + start + 1);
+            // then claim when epoch is over, automatically resubscribes
+            vm.warp(30 days * i + start);
             claimContract.claimOP(alice);
         }
 
-        // subscribe for epoch 5
-        claimContract.subscribe(alice);
-            
-        // fast forward 6 months and 1 second -> subscribing should be deactivated
-        vm.warp(30 days * 6 + start + 1);
+        // should have subscribed for epoch 5 by now
+        assertEq(claimContract.epochToSubscribedEXP(5, alice), 10 ether);
+
+        // fast forward 6 months -> subscribing should be deactivated
+        vm.warp(30 days * 6 + start);
         vm.expectRevert(bytes("claims ended"));
         claimContract.subscribe(alice);
 
         // but claiming for past epoch (epoch 5) should still be possible
+        vm.expectEmit(true, true, true, true);
+        emit OPClaimed(alice, 5, 50 ether);
         claimContract.claimOP(alice);
+
+        // it shouldnt automatically resubscribe this time
+        assertEq(claimContract.epochToSubscribedEXP(6, alice), 0);
 
         // extend claims for 1 month
         claimContract.extendClaim(1);
@@ -209,11 +270,33 @@ contract ClaimOPTest is Test {
         vm.expectEmit(true, true, true, true);
         emit Subscribed(alice, 6, 10 ether);
         claimContract.subscribe(alice);
-    } 
+    }
+
+    /// @dev tests that there are no rounding errors when operating at the reward limit
+    function testReduceRewardLimit() public {
+        // mint 20 EXP to 100 accounts and subscribe to reward dist
+        for (uint256 i = 100; i < 200; i++) {
+            EXP.mint(vm.addr(i), 20 ether);
+            claimContract.subscribe(vm.addr(i));
+        }
+
+        assertEq(claimContract.totalEXPAtEpoch(0), 2000 ether);
+
+        // fast forward one month
+        vm.warp(30 days + start);
+
+        // total OP reward for epoch 0 is 10k OP (aka the limit)
+        // factor should be 1.0
+        // so reward for each individual user should be
+        // (20 EXP * 5) * 1.0 = 100 OP
+        vm.expectEmit(true, true, true, true);
+        emit OPClaimed(vm.addr(100), 0, 100 ether);
+        claimContract.claimOP(vm.addr(100));
+    }
 
     function testReducedReward() public {
         // mint 99 EXP to 21 accounts and subscribe to reward dist
-        for (uint i = 100; i < 121; i++){
+        for (uint256 i = 100; i < 121; i++) {
             EXP.mint(vm.addr(i), 99 ether);
             claimContract.subscribe(vm.addr(i));
         }
@@ -222,14 +305,57 @@ contract ClaimOPTest is Test {
         assertEq(claimContract.totalEXPAtEpoch(0), 2079 ether);
 
         // fast forward one month
-        vm.warp(30 days + start + 1);     
+        vm.warp(30 days + start);
 
         // total OP reward for epoch 0 is 10311 OP
-        // factor should be 0.9698...
+        // factor should be 0.9620...
         // so reward for each individual user should be
-        // (99 EXP * 5 - 4) * 0.9698.. = 476.19047.. OP
+        // (99 EXP * 5) * 0.9620.. = 476.19047.. OP
         vm.expectEmit(true, true, true, true);
-        emit OPClaimed(vm.addr(100), 0, 476_190476190476183000);        
+
+        emit OPClaimed(vm.addr(100), 0, 476_190476190476190476);
+        claimContract.claimOP(vm.addr(100));
+    }
+
+    function testReducedReward50Percent() public {
+        // mint 40 EXP to 100 accounts and subscribe to reward dist
+        for (uint256 i = 100; i < 200; i++) {
+            EXP.mint(vm.addr(i), 40 ether);
+            claimContract.subscribe(vm.addr(i));
+        }
+
+        assertEq(claimContract.totalEXPAtEpoch(0), 4000 ether);
+
+        // fast forward one month
+        vm.warp(30 days + start);
+
+        // total OP reward for epoch 0 is 20k OP
+        // factor should be 0.5
+        // so reward for each individual user should be
+        // (40 EXP * 5) * 0.5 = 100 OP
+        vm.expectEmit(true, true, true, true);
+        emit OPClaimed(vm.addr(100), 0, 100 ether);
+        claimContract.claimOP(vm.addr(100));
+    }
+
+    function testReducedReward99Percent() public {
+        // mint 50 EXP to 4k accounts (!) and subscribe to reward dist
+        for (uint256 i = 100; i < 4_100; i++) {
+            EXP.mint(vm.addr(i), 50 ether);
+            claimContract.subscribe(vm.addr(i));
+        }
+
+        assertEq(claimContract.totalEXPAtEpoch(0), 200_000 ether);
+
+        // fast forward one month
+        vm.warp(30 days + start);
+
+        // total OP reward for epoch 0 is 1m OP
+        // factor should be 0.01
+        // so reward for each individual user should be
+        // (50 EXP * 5) * 0.01 = 2.5 OP
+        vm.expectEmit(true, true, true, true);
+        emit OPClaimed(vm.addr(100), 0, 2.5 ether);
         claimContract.claimOP(vm.addr(100));
     }
 }

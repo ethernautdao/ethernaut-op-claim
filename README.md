@@ -11,14 +11,16 @@ A Cap at 99 EXP is considered for now.
 ### Claimable amount
 
 Claimable OP will follow this function:
-`Claimable OP = 5 * (EXP balance) - 4`
+`Claimable OP = 5 * (EXP balance)`
 
 This will result in
 
 ```
-1EXP = 1 claimable OP
-99 EXP (max lvl) = 491 claimable OP
+1 EXP = 5 claimable OP
+99 EXP = 495 claimable OP
 ```
+
+The $OP distribution will be 10.000 OP/month. If there is more than 10k OP to be claimed, the distribution will get everyone's balances and reduce the claimable OP of each address. We will request every EXP holder to subscribe to the distribution and pick the total OP to be claimed at the end of each epoch.  
 
 ### Duration
 
