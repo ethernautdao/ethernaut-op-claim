@@ -1,7 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import "forge-std/Script.sol";
+interface IMultiCall {
+    struct Call {
+        address target;
+        bytes callData;
+    }
+
+    function aggregate(Call[] calldata calls)
+        external
+        payable
+        returns (uint256 blockNumber, bytes[] memory returnData);
+}
 
 contract Accounts {
     // List of all EXP Holders
